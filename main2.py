@@ -4,7 +4,7 @@ import speech_recognition as sr
 from gtts import gTTS
 
 # OpenAI API 키 설정
-openai.api_key = '키 생성'
+openai.api_key = 'sk-FfXqkZrgukOiwYVk8wnu5j4cTkxYrYGE0YOJ9z93yUT3BlbkFJpZMKL2rMFDizoe2T_mALHbdKkZlRRoQTMsskfMedwA'
 
 # 시스템 초기 메시지 설정
 messages = [{"role": "system", "content": "You are an intelligent assistant."}]
