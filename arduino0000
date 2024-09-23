@@ -1,0 +1,59 @@
+#include "DHT.h" 
+#include <Wire.h>
+#include <BH1750.h>
+
+BH1750 lightMeter;
+
+const int soilmoisturePin = A0;
+
+DHT dht(7, DHT22); 
+
+
+
+
+
+void setup() {
+  Serial.begin(9600); 
+  dht.begin();
+  Wire.begin();
+  lightMeter.begin();
+  
+}
+
+
+
+
+
+void loop() {
+
+  delay(2000);
+
+  float h = dht.readHumidity();  
+  float t = dht.readTemperature(); 
+  //float hic = dht.computeHeatIndex(t, h, false); 
+  float lux = lightMeter.readLightLevel();
+
+  int soilmoisture = analogRead(soilmoisturePin);
+  int moisturePercentage = map(soilmoisture, 300, 1023, 100, 0);
+  
+  Serial.print("습도 : ");
+  Serial.print(h); //습도가 출력 됩니다.
+  Serial.println("%");
+  
+  //Serial.print("온도 : ");
+  Serial.print(t); //온도가 출력됩니다.
+  Serial.println("도");
+  
+  //Serial.print("Heat index: ");
+  //Serial.print(hic); //열지수(체감온도)가 출력됩니다.
+  //Serial.println(" *C ");
+
+  Serial.print("조도 : ");
+  Serial.print(lux);
+  Serial.println("lx");
+
+  Serial.print("토양습도 : ");
+  Serial.print(moisturePercentage);
+  Serial.println("%");
+  
+}
