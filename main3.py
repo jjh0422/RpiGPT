@@ -15,7 +15,7 @@ openai.api_key = '키 생성'
 messages = [{"role": "system", "content": "You are an intelligent assistant."}]
 
 # 시리얼 포트 설정 (아두이노 연결)
-ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)  # 포트 이름을 실제 포트에 맞게 변경
+ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)  # 포트 이름을 실제 포트에 맞게 변경
 time.sleep(2)  # 아두이노가 초기화되는 시간을 대기
 
 def get_temperature_from_arduino():
