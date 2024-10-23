@@ -28,10 +28,26 @@ sia = SentimentIntensityAnalyzer()
 
 def get_data_from_arduino(keyword):
     """아두이노로부터 특정 키워드에 해당하는 데이터를 읽어오는 함수"""
-    if ser.in_waiting > 0:  # 시리얼 포트에 데이터가 있으면
-        data = ser.readline().decode('utf-8').rstrip()  # 한 줄의 데이터 읽기
-        return data
-    return None
+    data_list = []  # 데이터를 저장할 리스트
+    start_time = time.time()  # 시작 시간 기록
+
+    while time.time() - start_time < 2:  # 2초 동안 데이터를 읽음
+        if ser.in_waiting > 0:  # 시리얼 포트에 데이터가 있으면
+            data = ser.readline().decode('utf-8').rstrip()  # 한 줄의 데이터 읽기
+            print(f"Received data: {data}")  # 디버깅을 위한 출력
+            data_list.append(data)  # 데이터를 리스트에 저장
+
+    # 저장된 데이터에서 키워드 검색
+    for data in data_list:
+        if keyword in data:  # 해당 키워드가 포함된 데이터만 처리
+            try:
+                value = data.split(":")[1].strip()  # ':' 이후 값만 추출
+                return value
+            except IndexError:
+                print("데이터 포맷이 올바르지 않습니다.")
+                return None
+    
+    return None  # 키워드가 포함된 데이터가 없는 경우 None 반환
 
 def audio():
     """음성 녹음 및 텍스트로 변환"""
