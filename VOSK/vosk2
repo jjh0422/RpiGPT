@@ -1,0 +1,47 @@
+import os
+import wave
+import json
+import numpy as np
+from vosk import Model, KaldiRecognizer
+
+# 모델 경로 설정
+model_path = "vosk-model-small-ko-0.22"
+if not os.path.exists(model_path):
+    print("모델을 찾을 수 없습니다. 모델 경로를 확인하세요.")
+    exit(1)
+
+# 모델 로드
+model = Model(model_path)
+recognizer = KaldiRecognizer(model, 16000)
+
+# 오디오 파일 열기
+wf = wave.open("output.wav", "rb")
+if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
+    print("오디오 파일 형식이 올바르지 않습니다.")
+    exit(1)
+
+# 주변 소음 제거 함수
+def reduce_ambient_noise(audio_data, threshold=500):
+    audio_array = np.frombuffer(audio_data, dtype=np.int16)
+    avg_volume = np.mean(np.abs(audio_array))  # 평균 진폭 계산
+
+    # 평균 진폭이 설정된 임계값 이하일 경우 소음으로 간주하여 제거
+    if avg_volume < threshold:
+        return b''  # 소음은 빈 데이터로 반환
+    else:
+        return audio_data  # 음성 데이터는 그대로 반환
+
+# 음성 인식
+while True:
+    data = wf.readframes(4000)
+    if len(data) == 0:
+        break
+    # 주변 소음 제거
+    cleaned_data = reduce_ambient_noise(data)
+    if len(cleaned_data) > 0 and recognizer.AcceptWaveform(cleaned_data):
+        result = recognizer.Result()
+        print(json.loads(result)["text"])
+
+# 최종 결과 출력
+final_result = recognizer.FinalResult()
+print(json.loads(final_result)["text"])
