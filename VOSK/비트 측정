@@ -1,0 +1,26 @@
+# 모델의 비트 측정
+
+import torch
+from vosk import Model
+
+# 모델 경로 설정
+model_path = "vosk-model-small-ko-0.22"
+
+# Vosk 모델 로드
+model = Model(model_path)
+
+# PyTorch 모델 로드 (예시로 간단한 모델 사용)
+class SimpleModel(torch.nn.Module):
+    def __init__(self):
+        super(SimpleModel, self).__init__()
+        self.fc = torch.nn.Linear(10, 10)
+
+    def forward(self, x):
+        return self.fc(x)
+
+# PyTorch 모델 생성
+pytorch_model = SimpleModel()
+
+# 모델 파라미터 확인
+for name, param in pytorch_model.named_parameters():
+    print(f"Parameter: {name}, Type: {param.dtype}")
