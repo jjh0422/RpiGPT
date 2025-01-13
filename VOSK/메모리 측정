@@ -1,0 +1,82 @@
+#모델의 메모리 측정
+
+import os
+import psutil
+import wave
+import json
+import io
+import vosk
+import noisereduce as nr
+import numpy as np
+from vosk import Model, KaldiRecognizer
+
+# 모델 경로 설정
+model_path = "vosk-model-small-ko-0.22"
+if not os.path.exists(model_path):
+    print("모델을 찾을 수 없습니다. 모델 경로를 확인하세요.")
+    exit(1)
+
+# 메모리 사용량 측정 함수
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    return mem_info.rss / (1024 * 1024)  # 메모리 사용량을 MB 단위로 반환
+
+# 초기 메모리 사용량 측정
+initial_memory = get_memory_usage()
+print(f"초기 메모리 사용량: {initial_memory:.2f} MB")
+
+# 모델 로드
+model = Model(model_path)
+recognizer = KaldiRecognizer(model, 16000)
+
+# 모델 로드 후 메모리 사용량 측정
+model_loaded_memory = get_memory_usage()
+print(f"모델 로드 후 메모리 사용량: {model_loaded_memory:.2f} MB")
+
+# 오디오 파일 열기
+with wave.open("output.wav", "rb") as wf:
+    if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
+        print("오디오 파일 형식이 올바르지 않습니다.")
+        exit(1)
+
+    # 오디오 데이터 읽기
+    audio_data = wf.readframes(wf.getnframes())
+
+# 오디오 데이터를 numpy 배열로 변환 (16비트 PCM)
+audio_data_np = np.frombuffer(audio_data, dtype=np.int16)
+
+# 잡음 제거 (메모리 상에서 처리)
+# noisereduce는 2D 배열을 기대하므로, (1, n_frames) 형식으로 변환
+audio_data_np = audio_data_np.reshape(1, -1)
+
+reduced_noise = nr.reduce_noise(y=audio_data_np, sr=16000)
+
+# 잡음 제거된 데이터를 임시로 메모리에서 사용
+with io.BytesIO() as temp_wav:
+    with wave.open(temp_wav, "wb") as output_wf:
+        output_wf.setnchannels(1)
+        output_wf.setsampwidth(2)
+        output_wf.setframerate(16000)
+        output_wf.writeframes(reduced_noise.astype(np.int16).tobytes())
+
+    # 음성 인식 (메모리에서 처리)
+    temp_wav.seek(0)  # 파일 포인터를 처음으로 되돌림
+    temp_wf = wave.open(temp_wav, "rb")
+
+    # 음성 인식
+    while True:
+        data = temp_wf.readframes(4000)
+        if len(data) == 0:
+            break
+        if recognizer.AcceptWaveform(data):
+            result = recognizer.Result()
+            print(json.loads(result)["text"])
+
+    # 최종 결과 출력
+    final_result = recognizer.FinalResult()
+    print(json.loads(final_result)["text"])
+
+# 음성 인식 후 메모리 사용량 측정
+final_memory = get_memory_usage()
+print(f"음성 인식 후 메모리 사용량: {final_memory:.2f} MB")
