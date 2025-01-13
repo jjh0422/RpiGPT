@@ -1,0 +1,43 @@
+import os
+import torch
+import onnx
+import onnxruntime as ort
+import numpy as np
+from vosk import Model, KaldiRecognizer
+from onnxruntime.quantization import quantize_dynamic, QuantType
+
+# 인코딩 문제 해결을 위한 환경 변수 설정
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+# 모델 경로 설정
+model_path = "vosk-model-small-ko-0.22"
+
+# Vosk 모델 로드
+model = Model(model_path)
+
+# PyTorch 모델 로드 (예시로 간단한 모델 사용)
+class SimpleModel(torch.nn.Module):
+    def __init__(self):
+        super(SimpleModel, self).__init__()
+        self.fc = torch.nn.Linear(10, 10)
+
+    def forward(self, x):
+        return self.fc(x)
+
+# 모델 인스턴스 생성
+pytorch_model = SimpleModel()
+
+# PyTorch 모델 저장 (양자화하지 않음)
+torch.save(pytorch_model.state_dict(), "model.pth")
+print("모델이 'model.pth' 파일로 저장되었습니다.")
+
+# ONNX 형식으로 저장
+dummy_input = torch.randn(1, 10)
+torch.onnx.export(pytorch_model, dummy_input, "model.onnx")
+print("모델이 'model.onnx' 파일로 저장되었습니다.")
+
+# ONNX 모델을 양자화
+onnx_model = onnx.load("model.onnx")
+quantized_model = quantize_dynamic(onnx_model, weight_type=QuantType.QUInt8)
+onnx.save(quantized_model, "quantized_model.onnx")
+print("양자화된 모델이 'quantized_model.onnx' 파일로 저장되었습니다.")
