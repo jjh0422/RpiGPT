@@ -1,0 +1,24 @@
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+import soundfile as sf
+
+# 모델과 프로세서 로드
+model_name = "wav2vec2-ksponspeech"
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+model = Wav2Vec2ForCTC.from_pretrained(model_name)
+
+# 오디오 파일 로드
+audio_input, sample_rate = sf.read("C:/Users/JJ/PycharmProjects/250114/300wav/0001_063.wav")
+
+# 오디오 파일을 모델 입력 형식으로 변환
+input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
+
+# 모델을 사용하여 텍스트 예측
+with torch.no_grad():
+    logits = model(input_values).logits
+
+# 예측된 텍스트 디코딩
+predicted_ids = torch.argmax(logits, dim=-1)
+transcription = processor.batch_decode(predicted_ids)[0]
+
+print("Transcription:", transcription)
