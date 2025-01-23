@@ -1,0 +1,35 @@
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+import soundfile as sf
+import psutil
+import time
+
+# 모델과 프로세서 로드
+model_name = "wav2vec2-ksponspeech"
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+model = Wav2Vec2ForCTC.from_pretrained(model_name)
+
+# 오디오 파일 로드
+audio_input, sample_rate = sf.read("/home/pi/Downloads/output.wav")
+
+# 오디오 파일을 모델 입력 형식으로 변환
+input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
+
+# CPU 사용량 측정 함수
+def get_cpu_usage():
+    return psutil.cpu_percent(interval=1)
+
+# CPU 사용량을 텍스트 파일에 저장
+cpu_usage = get_cpu_usage()
+with open("cpu_usage_250123.txt", "w") as file:
+    file.write(f"CPU usage: {cpu_usage}%\n")
+
+# 모델을 사용하여 텍스트 예측
+with torch.no_grad():
+    logits = model(input_values).logits
+
+# 예측된 텍스트 디코딩
+predicted_ids = torch.argmax(logits, dim=-1)
+transcription = processor.batch_decode(predicted_ids)[0]
+
+print("Transcription:", transcription)
