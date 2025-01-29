@@ -1,0 +1,61 @@
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+import soundfile as sf
+import psutil
+import time
+import threading
+
+# 모델과 프로세서 로드
+model_name = "wav2vec2-ksponspeech"
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+model = Wav2Vec2ForCTC.from_pretrained(model_name)
+
+# 오디오 파일 경로
+audio_file_path = "/home/pi/Downloads/output.wav"
+
+# CPU 측정을 위한 글로벌 변수
+stop_cpu_logging = False  # CPU 로깅을 중지할 플래그
+cpu_usage_log = []  # CPU 사용량을 저장할 리스트
+
+# CPU 사용량을 1초마다 기록하는 함수 (쿼드코어 측정)
+def log_cpu_usage():
+    global stop_cpu_logging
+    while not stop_cpu_logging:
+        per_core_usage = psutil.cpu_percent(interval=1, percpu=True)
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        log_entry = f"{timestamp} - CPU Core Usage: {per_core_usage}\n"
+        cpu_usage_log.append(log_entry)
+
+# CPU 측정 스레드 시작
+cpu_thread = threading.Thread(target=log_cpu_usage, daemon=True)
+cpu_thread.start()
+
+# 5번 음성 인식 수행
+for i in range(5):
+    print(f"Processing {i+1}/5...")
+
+    # 오디오 파일 로드
+    audio_input, sample_rate = sf.read(audio_file_path)
+
+    # 오디오 파일을 모델 입력 형식으로 변환
+    input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
+
+    # 모델을 사용하여 텍스트 예측
+    with torch.no_grad():
+        logits = model(input_values).logits
+
+    # 예측된 텍스트 디코딩
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.batch_decode(predicted_ids)[0]
+
+    print(f"Transcription {i+1}: {transcription}")
+
+# 음성 인식 완료 후 CPU 측정 종료
+stop_cpu_logging = True
+cpu_thread.join()  # CPU 로깅 스레드 종료 대기
+
+# CPU 사용량을 텍스트 파일로 저장
+with open("cpu_usage_250123.txt", "w") as file:
+    file.writelines(cpu_usage_log)
+
+print("음성 인식 완료 및 CPU 사용량 저장 완료!")
