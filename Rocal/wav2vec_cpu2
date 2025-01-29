@@ -1,0 +1,78 @@
+import os
+import torch
+import time
+import psutil
+import wave
+import threading
+import sounddevice as sd
+import numpy as np
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+
+# 모델과 프로세서 로드
+model_name = "wav2vec2-ksponspeech"
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+model = Wav2Vec2ForCTC.from_pretrained(model_name)
+
+# 글로벌 변수
+stop_cpu_logging = False
+audio_count = 0  # 음성 인식 횟수 추적
+
+def log_cpu_usage():
+    """CPU 사용량을 지속적으로 측정하여 텍스트 파일에 기록"""
+    global stop_cpu_logging
+    with open("cpu_usage_wav2vec.txt", "a") as f:
+        while not stop_cpu_logging:
+            per_core_usage = psutil.cpu_percent(interval=1, percpu=True)
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            f.write(f"{timestamp} - CPU Usage: {per_core_usage}\n")
+            time.sleep(1)
+
+def record_audio(filename, duration=3, sample_rate=16000):
+    """마이크로부터 오디오 녹음 후 WAV 파일 저장"""
+    print("음성을 녹음하세요...")
+    audio_data = sd.rec(int(sample_rate * duration), samplerate=sample_rate, channels=1, dtype=np.int16)
+    sd.wait()
+    
+    # WAV 파일로 저장
+    with wave.open(filename, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16비트 오디오
+        wf.setframerate(sample_rate)
+        wf.writeframes(audio_data.tobytes())
+
+def transcribe_audio(wav_path):
+    """Wav2Vec2를 사용하여 음성 인식"""
+    try:
+        audio_input, sample_rate = sf.read(wav_path)
+        input_values = processor(audio_input, sampling_rate=sample_rate, return_tensors="pt").input_values
+
+        with torch.no_grad():
+            logits = model(input_values).logits
+
+        predicted_ids = torch.argmax(logits, dim=-1)
+        transcription = processor.batch_decode(predicted_ids)[0]
+
+        print(f"Transcription: {transcription}")
+        return transcription
+
+    except Exception as e:
+        print(f"오류 발생: {e}")
+        return ""
+
+if __name__ == "__main__":
+    # CPU 사용량 기록을 위한 스레드 시작
+    cpu_thread = threading.Thread(target=log_cpu_usage, daemon=True)
+    cpu_thread.start()
+
+    while audio_count < 5:  # 음성 인식을 5번 반복
+        filename = f"recorded_{audio_count}.wav"
+        record_audio(filename)  # 마이크로 음성 녹음
+        transcription = transcribe_audio(filename)  # Wav2Vec2 모델로 변환
+        audio_count += 1  # 음성 인식 횟수 증가
+
+    # 음성 인식 5번 후 CPU 측정을 중지
+    stop_cpu_logging = True
+
+    # 프로그램 종료 전 CPU 사용량 로그를 계속 기록하도록 대기
+    cpu_thread.join()  # CPU 기록 스레드가 종료될 때까지 대기
+    print("\n✅ 음성 인식 5번 완료, CPU 기록 종료.")
