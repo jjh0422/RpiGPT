@@ -1,0 +1,25 @@
+import speech_recognition as sr
+
+def audio():
+    # 음성 녹음 및 텍스트로 변환
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("무엇을 말씀하십니까?")
+        r.adjust_for_ambient_noise(source)
+        audio = r.listen(source)
+        try:
+            # Google 음성 인식 API를 사용하여 한글 텍스트로 변환
+            data = r.recognize_google(audio, language='ko-KR')
+            print("녹음된 텍스트: " + data)
+        except sr.UnknownValueError:
+            print("음성을 이해할 수 없습니다.")
+            data = ""
+        except sr.RequestError as e:
+            print(f"Google 음성 인식 서비스에 접근할 수 없습니다: {e}")
+            data = ""
+
+    return data
+
+if __name__ == "__main__":
+    # 음성 인식 실행
+    audio_message = audio().replace(" ", "")
