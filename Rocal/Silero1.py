@@ -103,9 +103,8 @@ def process_audio_files_in_folder(folder_path, output_text_file, model, get_spee
 
 def main():
     # Silero VAD 모델 및 함수 불러오기 (한 번만)
-    model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
-                                   model='silero_vad',
-                                   force_reload=False)
+    model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', trust_repo=True)
+
 
     get_speech_timestamps, _, read_audio, _, _ = utils
 
